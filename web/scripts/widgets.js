@@ -10,37 +10,167 @@ function getNumberDefaults(inputData, defaultStep) {
 	return { val: defaultVal, config: { min, max, step: 10.0 * step } };
 }
 
-export function addRandomizeWidget(node, targetWidget, name, defaultValue = false) {
-	const randomize = node.addWidget("toggle", name, defaultValue, function (v) {}, {
-		on: "enabled",
-		off: "disabled",
+export function addValueControlWidget(node, targetWidget, defaultValue = "randomize", values) {
+	const valueControl = node.addWidget("combo", "control_after_generate", defaultValue, function (v) { }, {
+		values: ["fixed", "increment", "decrement", "randomize"],
 		serialize: false, // Don't include this in prompt.
-	});
+	})
+	valueControl.afterQueued = () => {
 
-	randomize.afterQueued = () => {
-		if (randomize.value) {
-			const min = targetWidget.options?.min;
-			let max = targetWidget.options?.max;
-			if (min != null || max != null) {
-				if (max) {
-					// limit max to something that javascript can handle
-					max = Math.min(1125899906842624, max);
-				}
-				targetWidget.value = Math.floor(Math.random() * ((max ?? 9999999999) - (min ?? 0) + 1) + (min ?? 0));
-			} else {
-				targetWidget.value = Math.floor(Math.random() * 1125899906842624);
-			}
+		var v = valueControl.value;
+		var w = targetWidget.name;
+
+		let min = 0.0;
+		let max = targetWidget.options?.max;
+		let range = Math.max(min, max);
+
+
+		//set the max/min values depending on the parameter
+		switch (w) {
+			case ("seed"):
+			case ("noise_seed"):
+				console.log("noise_seed/seed");
+				max = 1125899906842624; // limit max to something that javascript can handle
+				range = Math.max(min, max);
+				break;
+			case ("cfg"):
+				console.log("cfg");
+				max = 50.0;
+				range = Math.max(min, max);
+				break;
+			case ("steps"):
+				max = 100;
+				min = 1;
+				range = Math.max(min, max);
+				break;
+			case ("start_at_step"):
+				max = 50000;
+				range = Math.max(min, max);
+				break;
+			case ("end_at_step"):
+				min = 50000;
+				max = 100000;
+				range = Math.max(min, max);
+				break;
+			case ("denoise"):
+				console.log("denoise");
+				max = 1.0;
+				min = 0.001;
+				range = Math.max(min, max);
+				break;
+			case ("height"):
+			case ("width"):
+				console.log("width/height");
+				min = 64;
+				max = 1920;
+				range = Math.max(0, Math.floor((max - min) / 64));
+				break;
+			default:
+				console.log("default (Failed)");
+				break;
 		}
-	};
-	return randomize;
-}
+
+		//adjust values based on valueControl Behaviour
+		switch (v) {
+			case ("fixed"):
+				console.log("fixed");
+				break;
+			case ("increment"):
+				if (min != null || max != null) {
+					/*if (max) { //loop to lowest and continue batch
+						targetWidget.value = 0;
+						console.log("increment");
+					} else {
+						targetWidget.value += 1;
+						console.log("increment");
+					}
+				} else {*/
+					if (max) {
+						if (w == "denoise") {
+							targetWidget.value += 0.1;
+							console.log("denoise decrement");
+						} else if (w == "cfg") {
+							targetWidget.value += 0.5;
+							console.log("cfg increment");
+						} else if (w == "width" || w == "height") {
+							targetWidget.value += 64;
+							console.log("width/height decrement");
+						} else {
+							targetWidget.value += 1.0;
+							console.log("decrement");
+						}
+					}
+				}
+				break;
+			case ("decrement"):
+				if (min != null || max != null) {
+					/*if (min) { //Loop to highest and continue batch
+						targetWidget.value = 1125899906842624;
+						console.log("decrement");
+					} else {
+						targetWidget.value -= 1;
+						console.log("decrement");
+					} else {*/
+					if (max) {
+						if (w == "denoise") {
+							targetWidget.value -= 0.1;
+							console.log("denoise decrement");
+						} else if (w == "cfg") {
+							targetWidget.value -= 0.5;
+							console.log("cfg decrement");
+						} else if (w == "width" || w == "height") {
+							targetWidget.value -= 64;
+							console.log("width/height decrement");
+						} else {
+							targetWidget.value -= 1.0;
+							console.log("decrement");
+						}
+
+					}
+				}
+				break;
+			case ("randomize"):
+				if (min != null || max != null) {
+					switch (w) {
+						case ("cfg"):
+						case ("denoise"):
+							console.log("random denoise");
+							targetWidget.value = parseFloat((Math.floor(Math.random() * ((range * 100) + 1)) / 100).toFixed(2));
+							break;
+						case ("height"):
+						case ("width"):
+							targetWidget.value = Math.floor(Math.random() * range) * 64 + min;
+							console.log("Random resolution");
+							break;
+						default:
+							targetWidget.value = Math.floor(Math.random() * range);
+							console.log("Random");
+							break;
+					}
+				}
+				break;
+			default:
+				console.log("default (failed to detect input!)");
+				break;
+		}
+
+		/*check if values are over or under their respective
+	 * ranges and set them to min or max.*/
+		if (targetWidget.value < min)
+			targetWidget.value = min;
+
+		if (targetWidget.value > max)
+			targetWidget.value = max;
+	}
+	return valueControl;	
+};
 
 function seedWidget(node, inputName, inputData) {
 	const seed = ComfyWidgets.INT(node, inputName, inputData);
-	const randomize = addRandomizeWidget(node, seed.widget, "Random seed after every gen", true);
+	const seedControl = addValueControlWidget(node, seed.widget, "randomize");
 
-	seed.widget.linkedWidgets = [randomize];
-	return { widget: seed, randomize };
+	seed.widget.linkedWidgets = [seedControl];
+	return seed;
 }
 
 const MultilineSymbol = Symbol();
