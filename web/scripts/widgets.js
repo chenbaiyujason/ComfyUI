@@ -1,3 +1,6 @@
+import { api } from "./api.js";
+import { app } from "../../scripts/app.js";
+
 function getNumberDefaults(inputData, defaultStep) {
 	let defaultVal = inputData[1]["default"];
 	let { min, max, step } = inputData[1];
@@ -172,6 +175,53 @@ function seedWidget(node, inputName, inputData) {
 	seed.widget.linkedWidgets = [seedControl];
 	return seed;
 }
+
+function imagesendWidget(node, inputName, inputData, app) {
+	function showImage(node,uploadWidget,name,type) {
+			// Position the image somewhere sensible
+			if (!node.imageOffset) {
+					node.imageOffset = uploadWidget.last_y ? uploadWidget.last_y + 50 : 100;
+			}
+
+			const img = new Image();
+			img.onload = () => {
+					node.imgs = [img];
+					app.graph.setDirtyCanvas(true);
+			};
+
+			if(type == "OUT")
+				img.src = `/view?filename=${name}&type=output`;
+			else if(type == "TEMP")
+				img.src = `/view?filename=${name}&type=temp`;
+			else
+				img.src = `/view?filename=${name}&type=input`;
+	}
+
+	async function callback() {
+		if(node.images == undefined || node.images.length < 1)
+			return;
+
+		const image_name = node.images[0].filename;
+		const copied = false;
+
+		for(let i in app.graph._nodes) {
+			var n = app.graph._nodes[i];
+			if(n.type == "LoadImage" || n.type == "LoadImageMask") {
+				const imageWidget = n.widgets.find((w) => w.name === "image");
+				const recvWidget = n.widgets.find((w) => w.name === "recv img");
+
+				if(recvWidget.value == "enable") {
+					imageWidget.value = image_name + ` [${inputData[1]}]`;
+					const thatImageWidget = n.widgets.find((w) => w.value === "image");
+					await showImage(n,thatImageWidget,image_name,inputData[1]);
+				}
+			}
+		}
+	}
+
+	return { widget: node.addWidget("button", inputName, "", () => { callback(); }, {}) };
+}
+
 
 const MultilineSymbol = Symbol();
 const MultilineResizeSymbol = Symbol();
@@ -367,6 +417,7 @@ export const ComfyWidgets = {
 		}
 		return { widget: node.addWidget("combo", inputName, defaultValue, () => {}, { values: type }) };
 	},
+	IMAGESEND:imagesendWidget,
 	IMAGEUPLOAD(node, inputName, inputData, app) {
 		const imageWidget = node.widgets.find((w) => w.name === "image");
 		let uploadWidget;
@@ -374,7 +425,7 @@ export const ComfyWidgets = {
 		function showImage(name) {
 			// Position the image somewhere sensible
 			if (!node.imageOffset) {
-				node.imageOffset = uploadWidget.last_y ? uploadWidget.last_y + 25 : 75;
+				node.imageOffset = uploadWidget.last_y ? uploadWidget.last_y + 50 : 100;
 			}
 
 			const img = new Image();

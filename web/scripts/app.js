@@ -824,6 +824,9 @@ class ComfyApp {
 					if (nodeData["input"]["optional"] != undefined){
 					    inputs = Object.assign({}, nodeData["input"]["required"], nodeData["input"]["optional"])
 					}
+					if (nodeData["widget"] != undefined){
+					    inputs = Object.assign(inputs, nodeData["widget"])
+					}
 					const config = { minWidth: 1, minHeight: 1 };
 					for (const inputName in inputs) {
 						const inputData = inputs[inputName];

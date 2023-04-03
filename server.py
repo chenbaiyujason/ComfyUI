@@ -7,6 +7,7 @@ import execution
 import uuid
 import json
 import glob
+
 try:
     import aiohttp
     from aiohttp import web
@@ -156,6 +157,8 @@ class PromptServer():
                 info['output_name'] = obj_class.RETURN_NAMES if hasattr(obj_class, 'RETURN_NAMES') else info['output']
                 info['name'] = x
                 info['display_name'] = nodes.NODE_DISPLAY_NAME_MAPPINGS[x] if x in nodes.NODE_DISPLAY_NAME_MAPPINGS.keys() else x
+                if hasattr(obj_class, 'WIDGET_TYPES'):
+                    info['widget'] = obj_class.WIDGET_TYPES
                 info['description'] = ''
                 info['category'] = 'sd'
                 if hasattr(obj_class, 'CATEGORY'):
