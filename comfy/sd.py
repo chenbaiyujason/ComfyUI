@@ -14,20 +14,6 @@ from .t2i_adapter import adapter
 from . import utils
 from . import clip_vision
 
-def load_torch_file(ckpt):
-    if ckpt.lower().endswith(".safetensors"):
-        import safetensors.torch
-        sd = safetensors.torch.load_file(ckpt, device="cpu")
-    else:
-        pl_sd = torch.load(ckpt, map_location="cpu")
-        if "global_step" in pl_sd:
-            print(f"Global Step: {pl_sd['global_step']}")
-        if "state_dict" in pl_sd:
-            sd = pl_sd["state_dict"]
-        else:
-            sd = pl_sd
-    return sd
-
 def load_model_weights(model, sd, verbose=False, load_state_dict_to=[]):
     m, u = model.load_state_dict(sd, strict=False)
 
